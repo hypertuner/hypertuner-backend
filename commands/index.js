@@ -8,9 +8,11 @@ import express from "express";
 import watcher from "nsfw";
 
 import fs from "fs-extra";
-
+import {exec} from 'child_process'
+import path from 'path'
 import { useLogState } from "../core/utils";
 import { webSocketPort, staticPort, staticPath } from "../core/config";
+
 
 /// Main backend start
 const Main = () => {
@@ -37,8 +39,36 @@ const Main = () => {
 		// parse application/json
 		server.use(express.json());
 
-		server.post("/create-config", (req, res) => {
+		server.post("/create-config", async (req, res) => {
 			setRestStatus(JSON.stringify(req.body));
+			const {name} = req.body
+
+			const storagePath = path.resolve(`./storage/${name}`)
+			const configPath = path.resolve(`${storagePath}/config.json`)
+
+			await fs.ensureDir(storagePath);
+			
+			await fs.writeJSON(configPath, req.body)
+
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(
+				JSON.stringify({
+					success: true
+				})
+			);
+		});
+
+		server.post("/run-config", async (req, res) => {
+			setRestStatus(JSON.stringify(req.body));
+			const {
+				name
+			} = req.body
+
+			const storagePath = path.resolve(`./storage/${name}`)
+			const configPath = path.resolve(`${storagePath}/config.json`)
+			exec(`python demo.py --config=${configPath}`), (err, stdout, stderr)=>{
+				setRestStatus(stdout);
+			})
 
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(
