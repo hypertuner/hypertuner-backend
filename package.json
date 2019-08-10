@@ -1,0 +1,30 @@
+{
+	"name": "hypertuner-backend",
+	"version": "0.1.0",
+	"license": "MIT",
+	"bin": "./build/cli.js",
+	"engines": {
+		"node": ">=8"
+	},
+	"scripts": {
+		"dev": "pastel dev",
+		"build": "pastel build",
+		"prepare": "pastel build"
+	},
+	"files": [
+		"build",
+		"public"
+	],
+	"dependencies": {
+		"express": "^4.17.1",
+		"fs-extra": "^8.1.0",
+		"ink": "^2.3.0",
+		"ink-spinner": "^3.0.1",
+		"nsfw": "^1.2.5",
+		"pastel": "^1.0.3",
+		"prop-types": "^15.7.2",
+		"react": "^16.9.0",
+		"serve-handler": "^6.1.1",
+		"uWebSockets.js": "uNetworking/uWebSockets.js#v15.11.0"
+	}
+}
