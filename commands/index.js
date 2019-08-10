@@ -5,13 +5,12 @@ import uWS from "uWebSockets.js";
 import handler from "serve-handler";
 
 import express from "express";
-import watcher from 'nsfw'
+import watcher from "nsfw";
 
-import fs from 'fs-extra'
+import fs from "fs-extra";
 
 import { useLogState } from "../core/utils";
 import { webSocketPort, staticPort, staticPath } from "../core/config";
-
 
 /// Main backend start
 const Main = () => {
@@ -49,7 +48,7 @@ const Main = () => {
 			);
 		});
 
-		server.get("/", (req, res) => {
+		server.get("/*", (req, res) => {
 			handler(req, res, {
 				public: staticPath
 			});
@@ -72,24 +71,33 @@ const Main = () => {
 					// ws.subscribe("graph/#");
 					// Start a file watcher inside the directory
 					// ws.publish("graph/temperature", message);
-					await fs.ensureDir('./storage')
-					setWatcherStatus('🔍\tWatching storage', 'green')
-					const storageWatcher = await watcher('./storage', (e) => {
-						console.log(e)
-					})
-					await storageWatcher.start()
-				},
+					await fs.ensureDir("./storage");
+					setWatcherStatus("🔍\tWatching storage", "green");
+					const storageWatcher = await watcher("./storage", e => {
+						console.log(e);
+					});
+					await storageWatcher.start();
+				}
 			})
 			.listen(webSocketPort, token => {
 				if (!token) {
-					setSocketStatus("💀\tFailed to listen to port " + webSocketPort, "red");
-					process.exit(1)
+					setSocketStatus(
+						"💀\tFailed to listen to port " + webSocketPort,
+						"red"
+					);
+					process.exit(1);
 				}
 
 				setSocketStatus("🚀\tReady to receive data . . .", "green");
 			});
 
+		process.on("SIGINT", () => {
+			setRestStatus("⏹️\tShutdown app server", "cyan");
+			setSocketStatus("⏹️\tShutdown socket server", "cyan");
+			setWatcherStatus("⏹️\tShutdown file watcher", "cyan");
 
+			process.exit();
+		});
 	}, []);
 
 	return (
