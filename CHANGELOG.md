@@ -6,7 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+
+## [0.8.0] - 2019-08-10
+### Added
 - Endpoint to query all folders in storage
+
 
 ## [0.7.0] - 2019-08-10
 ### Changed
