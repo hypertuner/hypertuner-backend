@@ -13,6 +13,9 @@ import path from 'path'
 import { useLogState } from "../core/utils";
 import { webSocketPort, staticPort, staticPath } from "../core/config";
 
+import si from 'systeminformation';
+import { Converter as CSV } from 'csvtojson';
+
 
 /// Main backend start
 const Main = () => {
@@ -66,7 +69,7 @@ const Main = () => {
 
 			const storagePath = path.resolve(`./storage/${name}`)
 			const configPath = path.resolve(`${storagePath}/config.json`)
-			exec(`python demo.py --config=${configPath}`), (err, stdout, stderr)=>{
+			exec(`python demo.py --config=${configPath}`, (err, stdout, stderr)=>{
 				setRestStatus(stdout);
 			})
 
@@ -76,6 +79,80 @@ const Main = () => {
 					success: true
 				})
 			);
+		});
+
+		server.get("/hw-info", async (req, res) => {
+
+			// Get cpu and memory stats
+			const cpu = await si.cpu();
+			const cpuCurrSpeed = await si.cpuCurrentspeed();
+			const gpus = await si.graphics();
+			const memory = await si.mem();
+			const specs = {
+				cpuCurrentClock: cpu.speed,
+				cpuMaxClock: cpu.speedmax,
+				memoryUsed: memory.active,
+				memoryTotal: memory.total,
+				numGpus: gpus.length,
+			};
+
+			// Get gpu stats
+			const query = `nvidia-smi --format=csv --query-gpu=memory.used,memory.free,utilization.gpu`;
+			exec(query,(err,result) =>{
+				if(err){
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify(specs)
+					);
+				} else {
+					const Parser = new CSV({
+						flatKeys: true
+					});
+				
+					Parser.fromString(data,(err,result) => {
+						if(err){
+							logger.error({err},'Failed to parse CSV output');
+							console.log(data);
+						} else {
+							result.forEach((gpu) =>{
+								// Set unsupported returns to an empty string for simplicity
+								for(const key in gpu){
+									if(gpu.hasOwnProperty(key)){
+										const value = gpu[key];
+										if(value === '[Not Supported]'){
+											gpu[key] = '';
+										} else {
+											if(value === 'Enabled'){
+												gpu[key] = true;
+											} else if(value === 'Disabled'){
+												gpu[key] = false;
+											}
+										}
+									}
+								}
+				
+								for (let i = 0; i < specs.numGpus; i++) {
+									const gpuSpecs = {
+										gpuMemoryUsed: parseInt(gpu['memory.used [MiB]'].replace(' MiB',''),10),
+										gpuMemoryTotal: parseInt(gpu['memory.total [MiB]'].replace(' MiB',''),10),
+										gpuUtilization: parseInt(gpu['utilization.gpu [%]'].replace(' %',''))
+									}
+									specs[`gpu${i}`] = gpuSpecs;
+								}
+
+								res.writeHead(200, { "Content-Type": "application/json" });
+								res.end(
+									JSON.stringify(specs)
+								);
+
+							});
+						}
+					});
+
+
+
+				}
+			});
 		});
 
 		server.get("/*", (req, res) => {

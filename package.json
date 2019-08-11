@@ -18,6 +18,7 @@
 		"public"
 	],
 	"dependencies": {
+		"csvtojson": "^2.0.10",
 		"express": "^4.17.1",
 		"fs-extra": "^8.1.0",
 		"ink": "^2.3.0",
@@ -27,6 +28,7 @@
 		"prop-types": "^15.7.2",
 		"react": "^16.9.0",
 		"serve-handler": "^6.1.1",
+		"systeminformation": "^4.14.4",
 		"uWebSockets.js": "uNetworking/uWebSockets.js#v15.11.0"
 	}
 }
