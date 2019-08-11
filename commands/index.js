@@ -1,4 +1,6 @@
 import React, { useEffect } from "react";
+import PropTypes from "prop-types";
+
 import { Text, Color, Box } from "ink";
 
 import uWS from "uWebSockets.js";
@@ -16,8 +18,8 @@ import { webSocketPort, staticPort, staticPath } from "../core/config";
 import si from "systeminformation";
 import { Converter as CSV } from "csvtojson";
 
-/// Main backend start
-const Main = () => {
+/// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
+const Main = ({ runFile }) => {
 	const [restStatus, restStatusColor, setRestStatus] = useLogState(
 		"rest",
 		"🔄\tSpinning up the static app . . .",
@@ -37,6 +39,14 @@ const Main = () => {
 	);
 
 	useEffect(() => {
+		if (!fs.pathExistsSync(path.resolve(`./${runFile}`))) {
+			setSocketStatus("⛔\tShutdown all services", "red");
+			setRestStatus("⛔\tError!", "red");
+			setWatcherStatus(`⛔\t${runFile} does not exist`, "red");
+
+			return
+		}
+
 		const server = express();
 		// parse application/json
 		server.use(express.json());
@@ -66,9 +76,12 @@ const Main = () => {
 
 			const storagePath = path.resolve(`./storage/${name}`);
 			const configPath = path.resolve(`${storagePath}/config.json`);
-			exec(`python demo.py --config=${configPath}`, (err, stdout, stderr) => {
-				setRestStatus(stdout);
-			});
+			exec(
+				`python ${runFile} --config=${configPath}`,
+				(err, stdout, stderr) => {
+					setRestStatus(stdout);
+				}
+			);
 
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(
@@ -245,5 +258,12 @@ const Main = () => {
 		</Box>
 	);
 };
+
+Main.propTypes = {
+	/// The python training script to be run
+	runFile: PropTypes.string.isRequired
+};
+
+Main.positionalArgs = ["runFile"];
 
 export default Main;

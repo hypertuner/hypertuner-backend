@@ -5,7 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Added
+
+## [0.9.0] - 2019-08-11
+### Changed
+- Adding python file parameter for the cli
+- Do a check of the python file and make sure they exist. If not terminate.
 
 ## [0.8.0] - 2019-08-10
 ### Added
