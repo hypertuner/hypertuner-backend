@@ -116,7 +116,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 			const configList = await fs.readdir(storagePath);
 
-			setWatcherStatus(JSON.stringify(dirs));
+			setWatcherStatus(JSON.stringify(configList));
 			res.end(
 				JSON.stringify({
 					success: true,
