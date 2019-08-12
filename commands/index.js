@@ -9,7 +9,7 @@ import handler from "serve-handler";
 import express from "express";
 import watcher from "nsfw";
 
-import cors from 'cors'
+import cors from "cors";
 
 import fs from "fs-extra";
 import { exec } from "child_process";
@@ -46,14 +46,14 @@ const Main = ({ runFile, cors: enableCors }) => {
 			setRestStatus("⛔\tError!", "red");
 			setWatcherStatus(`⛔\t${runFile} does not exist`, "red");
 
-			return
+			return;
 		}
 
 		const server = express();
 		// parse application/json
 		server.use(express.json());
 
-		if(enableCors) {
+		if (enableCors) {
 			server.use(cors());
 		}
 
@@ -82,6 +82,19 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 			const storagePath = path.resolve(`./storage/${name}`);
 			const configPath = path.resolve(`${storagePath}/config.json`);
+
+			res.writeHead(200, { "Content-Type": "application/json" });
+			if (!(await fs.pathExists(configPath))) {
+				setRestStatus(`Error: ${configPath} not found`);
+				res.end(
+					JSON.stringify({
+						success: false
+					})
+				);
+
+				return;
+			}
+
 			exec(
 				`python ${runFile} --config=${configPath}`,
 				(err, stdout, stderr) => {
@@ -89,10 +102,43 @@ const Main = ({ runFile, cors: enableCors }) => {
 				}
 			);
 
+			res.end(
+				JSON.stringify({
+					success: true
+				})
+			);
+		});
+
+		server.post("/remove-config", async (req, res) => {
+			setRestStatus(JSON.stringify(req.body));
+			const { name } = req.body;
+
+			const storagePath = path.resolve(`./storage/${name}`);
+
+			await fs.rmdir(storagePath);
+
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(
 				JSON.stringify({
 					success: true
+				})
+			);
+		});
+
+		server.post("/read-config", async (req, res) => {
+			setRestStatus(JSON.stringify(req.body));
+			const { name } = req.body;
+
+			const storagePath = path.resolve(`./storage/${name}`);
+			const configPath = path.resolve(`${storagePath}/config.json`);
+
+			const data = await fs.readJSON(configPath);
+
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(
+				JSON.stringify({
+					success: true,
+					...data
 				})
 			);
 		});
@@ -268,7 +314,6 @@ const Main = ({ runFile, cors: enableCors }) => {
 Main.defaultProps = {
 	cors: false
 };
-
 
 Main.propTypes = {
 	/// The python training script to be run
