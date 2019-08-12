@@ -9,6 +9,8 @@ import handler from "serve-handler";
 import express from "express";
 import watcher from "nsfw";
 
+import cors from 'cors'
+
 import fs from "fs-extra";
 import { exec } from "child_process";
 import path from "path";
@@ -19,7 +21,7 @@ import si from "systeminformation";
 import { Converter as CSV } from "csvtojson";
 
 /// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
-const Main = ({ runFile }) => {
+const Main = ({ runFile, cors: enableCors }) => {
 	const [restStatus, restStatusColor, setRestStatus] = useLogState(
 		"rest",
 		"🔄\tSpinning up the static app . . .",
@@ -50,6 +52,10 @@ const Main = ({ runFile }) => {
 		const server = express();
 		// parse application/json
 		server.use(express.json());
+
+		if(enableCors) {
+			server.use(cors());
+		}
 
 		server.post("/create-config", async (req, res) => {
 			setRestStatus(JSON.stringify(req.body));
@@ -259,9 +265,16 @@ const Main = ({ runFile }) => {
 	);
 };
 
+Main.defaultProps = {
+	cors: false
+};
+
+
 Main.propTypes = {
 	/// The python training script to be run
-	runFile: PropTypes.string.isRequired
+	runFile: PropTypes.string.isRequired,
+	/// Enable all cors
+	cors: PropTypes.bool
 };
 
 Main.positionalArgs = ["runFile"];
