@@ -63,7 +63,7 @@ export const removeConfig = async (req, res) => {
 
 	const storagePath = path.resolve(`./storage/${nameId}`);
 
-	await fs.rmdir(storagePath);
+	await fs.remove(storagePath);
 
 	res.writeHead(200, { "Content-Type": "application/json" });
 	res.end(
