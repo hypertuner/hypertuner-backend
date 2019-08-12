@@ -1,6 +1,6 @@
 {
 	"name": "hypertuner",
-	"version": "0.10.1",
+	"version": "0.11.0",
 	"license": "MIT",
 	"bin": {
 		"hypertuner": "./build/cli.js"
@@ -18,6 +18,7 @@
 		"public"
 	],
 	"dependencies": {
+		"case": "^1.6.2",
 		"cors": "^2.8.5",
 		"csvtojson": "^2.0.10",
 		"express": "^4.17.1",
