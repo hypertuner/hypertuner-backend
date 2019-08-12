@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import { Text, Color, Box } from "ink";
 
 import uWS from "uWebSockets.js";
-import handler from "serve-handler";
 
 import express from "express";
 import watcher from "nsfw";
@@ -12,13 +11,18 @@ import watcher from "nsfw";
 import cors from "cors";
 
 import fs from "fs-extra";
-import { exec } from "child_process";
 import path from "path";
 import { useLogState } from "../core/utils";
 import { webSocketPort, staticPort, staticPath } from "../core/config";
 
-import si from "systeminformation";
-import { Converter as CSV } from "csvtojson";
+import { hwInfo } from "../api/hw-info";
+import {
+	createConfig,
+	listConfig,
+	readConfig,
+	runConfig,
+	removeConfig
+} from "../api/op-config";
 
 /// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
 const Main = ({ runFile, cors: enableCors }) => {
@@ -57,197 +61,31 @@ const Main = ({ runFile, cors: enableCors }) => {
 			server.use(cors());
 		}
 
-		server.post("/create-config", async (req, res) => {
-			setRestStatus(JSON.stringify(req.body));
-			const { name } = req.body;
-
-			const storagePath = path.resolve(`./storage/${name}`);
-			const configPath = path.resolve(`${storagePath}/config.json`);
-
-			await fs.ensureDir(storagePath);
-
-			await fs.writeJSON(configPath, req.body);
-
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(
-				JSON.stringify({
-					success: true
-				})
-			);
-		});
-
-		server.post("/run-config", async (req, res) => {
-			setRestStatus(JSON.stringify(req.body));
-			const { name } = req.body;
-
-			const storagePath = path.resolve(`./storage/${name}`);
-			const configPath = path.resolve(`${storagePath}/config.json`);
-
-			res.writeHead(200, { "Content-Type": "application/json" });
-			if (!(await fs.pathExists(configPath))) {
-				setRestStatus(`Error: ${configPath} not found`);
-				res.end(
-					JSON.stringify({
-						success: false
-					})
-				);
-
-				return;
-			}
-
-			exec(
-				`python ${runFile} --config=${configPath}`,
-				(err, stdout, stderr) => {
-					setRestStatus(stdout);
-				}
-			);
-
-			res.end(
-				JSON.stringify({
-					success: true
-				})
-			);
-		});
-
-		server.post("/remove-config", async (req, res) => {
-			setRestStatus(JSON.stringify(req.body));
-			const { name } = req.body;
-
-			const storagePath = path.resolve(`./storage/${name}`);
-
-			await fs.rmdir(storagePath);
-
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(
-				JSON.stringify({
-					success: true
-				})
-			);
-		});
-
-		server.post("/read-config", async (req, res) => {
-			setRestStatus(JSON.stringify(req.body));
-			const { name } = req.body;
-
-			const storagePath = path.resolve(`./storage/${name}`);
-			const configPath = path.resolve(`${storagePath}/config.json`);
-
-			const data = await fs.readJSON(configPath);
-
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(
-				JSON.stringify({
-					success: true,
-					...data
-				})
-			);
-		});
-
-		server.get("/list-config", async (req, res) => {
-			const storagePath = path.resolve(`./storage/`);
-
-			const storageExist = await fs.pathExists(storagePath);
-
-			res.writeHead(200, { "Content-Type": "application/json" });
-
-			if (!storageExist) {
-				setWatcherStatus(`😭\tPath '${storagePath} does not exist'`);
-				res.end(
-					JSON.stringify({
-						success: false
-					})
-				);
-				return;
-			}
-
-			const configList = await fs.readdir(storagePath);
-
-			setWatcherStatus(JSON.stringify(configList));
-			res.end(
-				JSON.stringify({
-					success: true,
-					configList
-				})
-			);
-		});
-
-		server.get("/hw-info", async (req, res) => {
-			// Get cpu and memory stats
-			const cpu = await si.cpu();
-			const cpuCurrSpeed = await si.cpuCurrentspeed();
-			const gpus = await si.graphics();
-			const memory = await si.mem();
-			const specs = {
-				cpuCurrentClock: cpu.speed,
-				cpuMaxClock: cpu.speedmax,
-				memoryUsed: memory.active,
-				memoryTotal: memory.total,
-				numGpus: gpus.length
+		server.use((req, res, next) => {
+			req.log = {
+				setSocketStatus,
+				setRestStatus,
+				setWatcherStatus
 			};
-
-			// Get gpu stats
-			const query = `nvidia-smi --format=csv --query-gpu=memory.used,memory.free,utilization.gpu`;
-			exec(query, (err, result) => {
-				if (err) {
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(specs));
-				} else {
-					const Parser = new CSV({
-						flatKeys: true
-					});
-
-					Parser.fromString(data, (err, result) => {
-						if (err) {
-							logger.error({ err }, "Failed to parse CSV output");
-							console.log(data);
-						} else {
-							result.forEach(gpu => {
-								// Set unsupported returns to an empty string for simplicity
-								for (const key in gpu) {
-									if (gpu.hasOwnProperty(key)) {
-										const value = gpu[key];
-										if (value === "[Not Supported]") {
-											gpu[key] = "";
-										} else {
-											if (value === "Enabled") {
-												gpu[key] = true;
-											} else if (value === "Disabled") {
-												gpu[key] = false;
-											}
-										}
-									}
-								}
-
-								for (let i = 0; i < specs.numGpus; i++) {
-									const gpuSpecs = {
-										gpuMemoryUsed: parseInt(
-											gpu["memory.used [MiB]"].replace(" MiB", ""),
-											10
-										),
-										gpuMemoryTotal: parseInt(
-											gpu["memory.total [MiB]"].replace(" MiB", ""),
-											10
-										),
-										gpuUtilization: parseInt(
-											gpu["utilization.gpu [%]"].replace(" %", "")
-										)
-									};
-									specs[`gpu${i}`] = gpuSpecs;
-								}
-
-								res.writeHead(200, { "Content-Type": "application/json" });
-								res.end(JSON.stringify(specs));
-							});
-						}
-					});
-				}
-			});
+			next();
 		});
+
+		server.post("/create-config", createConfig);
+
+		server.post("/run-config", runConfig);
+
+		server.post("/remove-config", removeConfig);
+
+		server.post("/read-config", readConfig);
+
+		server.get("/list-config", listConfig);
+
+		server.get("/hw-info", hwInfo);
+
+		server.use(express.static(staticPath));
 
 		server.get("/*", (req, res) => {
-			handler(req, res, {
-				public: staticPath
-			});
+			res.sendFile(path.join(staticPath, "/index.html"));
 		});
 
 		server.listen(staticPort, () => {
