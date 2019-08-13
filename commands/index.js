@@ -97,7 +97,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 		uWS
 			.App()
-			.ws("/*", {
+			.ws("/graph", {
 				compression: 0,
 				maxPayloadLength: 16 * 1024 * 1024,
 				idleTimeout: 10,
@@ -105,13 +105,36 @@ const Main = ({ runFile, cors: enableCors }) => {
 					// ws.subscribe("graph/#");
 					// Start a file watcher inside the directory
 					// ws.publish("graph/temperature", message);
-					await fs.ensureDir("./storage");
-					setWatcherStatus("🔍\tWatching storage", "green");
-					const storageWatcher = await watcher("./storage", e => {
-						console.log(e);
-					});
-					await storageWatcher.start();
+					// await fs.ensureDir("./storage");
+					// setWatcherStatus("🔍\tWatching storage", "green");
+					// const storageWatcher = await watcher("./storage", e => {
+					// 	console.log(e);
+					// });
+					// await storageWatcher.start();
+				},
+				message: async (ws, message, isBinary) => {
+					const data = Buffer.from(message).toString();
+					setSocketStatus(data);
+
+					const { action } = JSON.parse(data);
+
+					switch (action) {
+						case "watch":
+							ws.send(
+								JSON.stringify({
+									hello: "yeah"
+								})
+							);
+							break;
+
+						default:
+							break;
+					}
 				}
+			})
+			.ws("/terminal", {
+				open: async (ws, req) => {},
+				message: (ws, message, isBinary) => {}
 			})
 			.listen(webSocketPort, token => {
 				if (!token) {
