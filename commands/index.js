@@ -40,6 +40,7 @@ import { spawn } from "node-pty";
 const shellCmd = os.platform() === "win32" ? "powershell.exe" : "bash";
 
 const watchMap = new Map();
+const jobQueue = [];
 
 const shell = spawn(shellCmd, [], {
 	name: "xterm-color",
