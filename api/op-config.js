@@ -74,7 +74,7 @@ export const removeConfig = async (req, res) => {
 };
 
 export const runConfig = async (req, res) => {
-	const { setRestStatus } = req.log;
+	const { setRestStatus, runFile } = req.log;
 
 	setRestStatus(JSON.stringify(req.body));
 	const { name } = req.body;

@@ -63,6 +63,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 		server.use((req, res, next) => {
 			req.log = {
+				runFile,
 				setSocketStatus,
 				setRestStatus,
 				setWatcherStatus
@@ -126,7 +127,6 @@ const Main = ({ runFile, cors: enableCors }) => {
 								})
 							);
 							break;
-
 						default:
 							break;
 					}
