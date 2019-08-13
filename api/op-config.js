@@ -78,10 +78,18 @@ export const runConfig = async (req, res) => {
 
 	setRestStatus(JSON.stringify(req.body));
 	const { name } = req.body;
-	const nameId = kebab(name);
 
-	const storagePath = path.resolve(`./storage/${nameId}`);
-	const configPath = path.resolve(`${storagePath}/config.json`);
+	const jobEndCallback = () => {
+		const nextItem = jobQueue.pop();
+		const nameId = kebab(name);
+
+		const storagePath = path.resolve(`./storage/${nameId}`);
+		const configPath = path.resolve(`${storagePath}/config.json`);
+
+		exec(`python ${runFile} --config=${configPath}`, (err, stdout, stderr) => {
+			jobEndCallback();
+		});
+	}
 
 	res.writeHead(200, { "Content-Type": "application/json" });
 	if (!(await fs.pathExists(configPath))) {
@@ -95,9 +103,8 @@ export const runConfig = async (req, res) => {
 		return;
 	}
 
-	exec(`python ${runFile} --config=${configPath}`, (err, stdout, stderr) => {
-		setRestStatus(stdout);
-	});
+	jobQueue.append(name);
+	jobEndCallback();
 
 	res.end(
 		JSON.stringify({

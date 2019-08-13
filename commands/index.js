@@ -35,6 +35,7 @@ import {
 import { kebab } from "case";
 
 const watchMap = new Map();
+const jobQueue = [];
 
 /// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
 const Main = ({ runFile, cors: enableCors }) => {
