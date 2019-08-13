@@ -5,12 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.15.0] - 2019-08-13
+### Added
+- Websocket handler for graph
+- Websocket handler for terminal
 
 ## [0.14.0] - 2019-08-12
 ### Changed
 - Remove serve and use raw express
 - Refactor all api routes into /api directory
-- remove-config route
 
 ## [0.13.0] - 2019-08-12
 ### Changed
@@ -20,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Config reading
 - Remove config
-
 
 ## [0.11.0] - 2019-08-11
 ### Fixed
