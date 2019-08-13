@@ -40,7 +40,6 @@ import { spawn } from "node-pty";
 const shellCmd = os.platform() === "win32" ? "powershell.exe" : "bash";
 
 const watchMap = new Map();
-const jobQueue = [];
 
 const shell = spawn(shellCmd, [], {
 	name: "xterm-color",
@@ -125,6 +124,14 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 		uWS
 			.App()
+			.ws("/progress", {
+				compresson: 0,
+				maxPayloadLength: 16 * 1024 * 1024,
+
+				message: async (ws, message, isBinary) => {
+					
+				}
+			})
 			.ws("/graph", {
 				compression: 0,
 				maxPayloadLength: 16 * 1024 * 1024,

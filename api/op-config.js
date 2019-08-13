@@ -73,25 +73,49 @@ export const removeConfig = async (req, res) => {
 	);
 };
 
+const jobQueue = [];
+const progressPath = path.resolve('./storage/progress.json')
+
+const jobEndCallback = async (runFile) => {
+
+	if (jobQueue.length === 0) { return }
+
+	const nextItem = jobQueue[jobQueue.length - 1];
+	const nameId = kebab(nextItem);
+
+	const storagePath = path.resolve(`./storage/${nameId}`);
+	const configPath = path.resolve(`${storagePath}/config.json`);
+
+	exec(`python ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
+		jobEndCallback(runFile);
+		const finishedJob = jobQueue.pop();
+		
+		const progress = await fs.readJSON(progressPath);
+		progress[finishedJob] = 'finished';
+		await fs.writeJSON(progressPath, progress);
+	});
+
+	const progress = await fs.readJSON(progressPath);
+	progress[nextItem] = 'running';
+	await fs.writeJSON(progressPath, progress);
+}
 export const runConfig = async (req, res) => {
+	
 	const { setRestStatus, runFile } = req.log;
 
 	setRestStatus(JSON.stringify(req.body));
 	const { name } = req.body;
+	const nameId = kebab(name);
 
-	const jobEndCallback = () => {
-		const nextItem = jobQueue.pop();
-		const nameId = kebab(name);
-
-		const storagePath = path.resolve(`./storage/${nameId}`);
-		const configPath = path.resolve(`${storagePath}/config.json`);
-
-		exec(`python ${runFile} --config=${configPath}`, (err, stdout, stderr) => {
-			jobEndCallback();
-		});
-	}
+	const storagePath = path.resolve(`./storage/${nameId}`);
+	const configPath = path.resolve(`${storagePath}/config.json`);
 
 	res.writeHead(200, { "Content-Type": "application/json" });
+
+	if (!(await fs.pathExists(progressPath))) {
+		await fs.writeJSON(progressPath, {})
+	}
+
 	if (!(await fs.pathExists(configPath))) {
 		setRestStatus(`Error: ${configPath} not found`);
 		res.end(
@@ -103,8 +127,15 @@ export const runConfig = async (req, res) => {
 		return;
 	}
 
-	jobQueue.append(name);
-	jobEndCallback();
+	jobQueue.unshift(name);
+
+	const progress = await fs.readJSON(progressPath);
+	progress[name] = 'queued';
+	await fs.writeJSON(progressPath, progress);
+
+	if (jobQueue.length === 1) {
+		jobEndCallback(runFile);
+	}
 
 	res.end(
 		JSON.stringify({
