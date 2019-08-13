@@ -15,6 +15,10 @@ import path from "path";
 import { useLogState } from "../core/utils";
 import { webSocketPort, staticPort, staticPath } from "../core/config";
 
+import csv from "csvtojson";
+
+import uuid from "uuid/v1";
+
 import { hwInfo } from "../api/hw-info";
 import {
 	createConfig,
@@ -23,6 +27,9 @@ import {
 	runConfig,
 	removeConfig
 } from "../api/op-config";
+import { kebab } from "case";
+
+const watchMap = new Map();
 
 /// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
 const Main = ({ runFile, cors: enableCors }) => {
@@ -101,7 +108,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 			.ws("/graph", {
 				compression: 0,
 				maxPayloadLength: 16 * 1024 * 1024,
-				idleTimeout: 10,
+				// idleTimeout: 10,
 				open: async (ws, req) => {
 					// ws.subscribe("graph/#");
 					// Start a file watcher inside the directory
@@ -117,16 +124,84 @@ const Main = ({ runFile, cors: enableCors }) => {
 					const data = Buffer.from(message).toString();
 					setSocketStatus(data);
 
-					const { action } = JSON.parse(data);
+					const args = JSON.parse(data);
+
+					const { action } = args;
 
 					switch (action) {
-						case "watch":
+						case "watch": {
+							const { name } = args;
+							const nameId = kebab(name);
+							const watchId = uuid();
+
+							const storagePath = path.resolve(`./storage/${nameId}`);
+							const configPath = path.resolve(`${storagePath}/config.json`);
+							const graphPath = path.resolve(`${storagePath}/logs.csv`);
+
+							const [configExist, graphExist] = await Promise.all([
+								fs.pathExists(configPath),
+								fs.pathExists(graphPath)
+							]);
+
+							if (!configExist) {
+								ws.send(
+									JSON.stringify({
+										err: `config-not-found`
+									})
+								);
+								return;
+							}
+
+							if (graphExist) {
+								const graphData = await csv({
+									headers: ['x', 'y']
+								}).fromFile(graphPath);
+
+								ws.send(
+									JSON.stringify({
+										success: true,
+										watchId,
+										type: "watch-init",
+										graphData
+									})
+								);
+							}
+
+							const storageWatcher = await watcher(storagePath, events => {
+								// TODO: handle new data and filter out our graph file
+
+								ws.send(
+									JSON.stringify({
+										success: true,
+										watchId,
+										type: "watch-events",
+										events
+									})
+								);
+							});
+
+							await storageWatcher.start();
+
+							watchMap.set(watchId, storageWatcher);
+
+							break;
+						}
+						case "unwatch": {
+							const { watchId: stopWatchId } = args;
+
+							await watchMap[stopWatchId].stop();
+
+							watchMap.delete(stopWatchId);
+
 							ws.send(
 								JSON.stringify({
-									hello: "yeah"
+									success: true,
+									type: "watch-stop",
+									watchId: stopWatchId
 								})
 							);
 							break;
+						}
 						default:
 							break;
 					}
