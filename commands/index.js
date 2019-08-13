@@ -34,7 +34,19 @@ import {
 } from "../api/op-config";
 import { kebab } from "case";
 
+import os from "os";
+import { spawn } from "node-pty";
+
+const shellCmd = os.platform() === "win32" ? "powershell.exe" : "bash";
+
 const watchMap = new Map();
+
+const shell = spawn(shellCmd, [], {
+	name: "xterm-color",
+	cwd: process.env.PWD,
+	env: process.env,
+	encoding: null
+});
 
 /// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
 const Main = ({ runFile, cors: enableCors }) => {
@@ -108,6 +120,8 @@ const Main = ({ runFile, cors: enableCors }) => {
 			);
 		});
 
+		// console.log(pty);
+
 		uWS
 			.App()
 			.ws("/graph", {
@@ -131,11 +145,11 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 					const args = JSON.parse(data);
 
-					const { action } = args;
+					const { action, payload } = args;
 
 					switch (action) {
 						case "watch": {
-							const { name } = args;
+							const { name } = payload;
 							const nameId = kebab(name);
 							const watchId = uuid();
 
@@ -208,12 +222,16 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 							watchMap.set(watchId, storageWatcher);
 
+							// console.log(watchMap);
+
 							break;
 						}
 						case "unwatch": {
-							const { watchId: stopWatchId } = args;
+							const { watchId: stopWatchId, nameId } = payload;
 
-							await watchMap[stopWatchId].stop();
+							// console.log(watchMap);
+
+							await watchMap.get(stopWatchId).stop();
 
 							watchMap.delete(stopWatchId);
 
@@ -233,8 +251,26 @@ const Main = ({ runFile, cors: enableCors }) => {
 				}
 			})
 			.ws("/terminal", {
-				open: async (ws, req) => {},
-				message: (ws, message, isBinary) => {}
+				compression: 0,
+				maxPayloadLength: 16 * 1024 * 1024,
+				open: (ws, req) => {
+					// For all shell data send it to the websocket
+					// setSocketStatus(data);
+					shell.on("data", data => {
+						try {
+							ws.send(data);
+						} catch (error) {
+							setSocketStatus(error.message)
+						}
+					});
+				},
+
+				message: (ws, msg, isBinary) => {
+					// setSocketStatus(msg);
+					if (msg) {
+						shell.write(Buffer.from(msg).toString());
+					}
+				},
 			})
 			.listen(webSocketPort, token => {
 				if (!token) {

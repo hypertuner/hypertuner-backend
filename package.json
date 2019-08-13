@@ -25,6 +25,7 @@
 		"fs-extra": "^8.1.0",
 		"ink": "^2.3.0",
 		"ink-spinner": "^3.0.1",
+		"node-pty": "^0.8.1",
 		"nsfw": "^1.2.5",
 		"pastel": "^1.0.3",
 		"prop-types": "^15.7.2",
