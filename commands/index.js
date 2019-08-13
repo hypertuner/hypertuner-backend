@@ -35,7 +35,6 @@ import {
 import { kebab } from "case";
 
 const watchMap = new Map();
-const jobQueue = [];
 
 /// 🚀 The ultimate toolkits for turbocharging your ML tuning workflow.
 const Main = ({ runFile, cors: enableCors }) => {
@@ -111,6 +110,14 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 		uWS
 			.App()
+			.ws("/progress", {
+				compresson: 0,
+				maxPayloadLength: 16 * 1024 * 1024,
+
+				message: async (ws, message, isBinary) => {
+					
+				}
+			})
 			.ws("/graph", {
 				compression: 0,
 				maxPayloadLength: 16 * 1024 * 1024,
