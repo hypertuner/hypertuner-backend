@@ -129,7 +129,59 @@ const Main = ({ runFile, cors: enableCors }) => {
 				maxPayloadLength: 16 * 1024 * 1024,
 
 				message: async (ws, message, isBinary) => {
+					const data = Buffer.from(message).toString();
 					
+					const args = JSON.parse(data);
+					const { action, payload } = args;
+
+					switch (action) {
+						case "watch": {
+							const progressPath = path.resolve('./storage/progress.json');
+							const pathExists = await fs.pathExists(configPath);
+
+							if (!pathExists) {
+								ws.send(
+									JSON.stringify({
+										err: `progress-not-found`
+									})
+								);
+								return;
+							}
+
+							const processStatus = await fs.readFile(progressPath);
+							ws.send(
+								JSON.stringify({ 
+									processStatus,
+									watchId
+								 })
+							);
+
+							const watchId = uuid();
+
+							const progressWatcher = await watcher(
+								progressPath,
+								async events => {
+
+									const processStatus = await fs.readFile(progressPath);
+									
+
+									ws.send(
+										JSON.stringify({ 
+											processStatus,
+											watchId
+										 })
+									);
+								}
+							);
+
+							await progressWatcher.start();
+
+							watchMap.set(watchId, progressWatcher);
+
+							break;
+
+						}
+					}
 				}
 			})
 			.ws("/graph", {

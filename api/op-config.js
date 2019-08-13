@@ -81,9 +81,8 @@ const jobEndCallback = async (runFile) => {
 	if (jobQueue.length === 0) { return }
 
 	const nextItem = jobQueue[jobQueue.length - 1];
-	const nameId = kebab(nextItem);
 
-	const storagePath = path.resolve(`./storage/${nameId}`);
+	const storagePath = path.resolve(`./storage/${nextItem}`);
 	const configPath = path.resolve(`${storagePath}/config.json`);
 
 	exec(`python ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
@@ -127,7 +126,7 @@ export const runConfig = async (req, res) => {
 		return;
 	}
 
-	jobQueue.unshift(name);
+	jobQueue.unshift(nameId);
 
 	const progress = await fs.readJSON(progressPath);
 	progress[name] = 'queued';
