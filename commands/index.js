@@ -13,7 +13,12 @@ import cors from "cors";
 import fs from "fs-extra";
 import path from "path";
 import { useLogState } from "../core/utils";
-import { webSocketPort, staticPort, staticPath } from "../core/config";
+import {
+	webSocketPort,
+	staticPort,
+	staticPath,
+	graphFileName
+} from "../core/config";
 
 import csv from "csvtojson";
 
@@ -136,7 +141,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 							const storagePath = path.resolve(`./storage/${nameId}`);
 							const configPath = path.resolve(`${storagePath}/config.json`);
-							const graphPath = path.resolve(`${storagePath}/logs.csv`);
+							const graphPath = path.resolve(`${storagePath}/${graphFileName}`);
 
 							const [configExist, graphExist] = await Promise.all([
 								fs.pathExists(configPath),
@@ -154,31 +159,50 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 							if (graphExist) {
 								const graphData = await csv({
-									headers: ['x', 'y']
+									headers: ["x", "y"]
 								}).fromFile(graphPath);
 
 								ws.send(
 									JSON.stringify({
 										success: true,
 										watchId,
-										type: "watch-init",
+										graphName: nameId,
+										type: "watch-data",
 										graphData
 									})
 								);
 							}
 
-							const storageWatcher = await watcher(storagePath, events => {
-								// TODO: handle new data and filter out our graph file
+							const storageWatcher = await watcher(
+								storagePath,
+								async events => {
+									// TODO: handle new data and filter out our graph file
 
-								ws.send(
-									JSON.stringify({
-										success: true,
-										watchId,
-										type: "watch-events",
-										events
-									})
-								);
-							});
+									const logChanged =
+										events.filter(
+											e =>
+												e.file === graphFileName &&
+												(e.action === watcher.actions.CREATED ||
+													e.action === watcher.actions.MODIFIED)
+										).length > 0;
+
+									if (logChanged) {
+										const graphData = await csv({
+											headers: ["x", "y"]
+										}).fromFile(graphPath);
+
+										ws.send(
+											JSON.stringify({
+												success: true,
+												watchId,
+												graphName: nameId,
+												type: "watch-data",
+												graphData
+											})
+										);
+									}
+								}
+							);
 
 							await storageWatcher.start();
 
@@ -197,6 +221,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 								JSON.stringify({
 									success: true,
 									type: "watch-stop",
+									graphName: nameId,
 									watchId: stopWatchId
 								})
 							);
