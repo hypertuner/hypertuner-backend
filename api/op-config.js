@@ -65,6 +65,10 @@ export const removeConfig = async (req, res) => {
 
 	await fs.remove(storagePath);
 
+	const progress = await fs.readJSON(progressPath);
+	delete progress[nameId];
+	await fs.writeJSON(progressPath, progress);
+
 	res.writeHead(200, { "Content-Type": "application/json" });
 	res.end(
 		JSON.stringify({
@@ -85,7 +89,7 @@ const jobEndCallback = async (runFile) => {
 	const storagePath = path.resolve(`./storage/${nextItem}`);
 	const configPath = path.resolve(`${storagePath}/config.json`);
 
-	exec(`python ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
+	exec(`python3 ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
 		const finishedJob = jobQueue.pop();
 		const progress = await fs.readJSON(progressPath);
 		progress[finishedJob] = 'finished';
