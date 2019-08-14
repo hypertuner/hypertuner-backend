@@ -131,6 +131,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 				message: async (ws, message, isBinary) => {
 					const data = Buffer.from(message).toString();
+					setSocketStatus(data);
 
 					const args = JSON.parse(data);
 					const { action, payload } = args;
