@@ -264,7 +264,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 									if (logChanged) {
 										const graphData = await csv({
-											headers: ["x", "y"]
+											headers: ["y", "x"]
 										}).fromFile(graphPath);
 
 										ws.send(
