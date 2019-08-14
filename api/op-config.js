@@ -73,7 +73,33 @@ export const removeConfig = async (req, res) => {
 	);
 };
 
+const jobQueue = [];
+const progressPath = path.resolve('./storage/progress.json')
+
+const jobEndCallback = async (runFile) => {
+
+	if (jobQueue.length === 0) { return }
+
+	const nextItem = jobQueue[jobQueue.length - 1];
+
+	const storagePath = path.resolve(`./storage/${nextItem}`);
+	const configPath = path.resolve(`${storagePath}/config.json`);
+
+	exec(`python ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
+		const finishedJob = jobQueue.pop();
+		const progress = await fs.readJSON(progressPath);
+		progress[finishedJob] = 'finished';
+		await fs.writeJSON(progressPath, progress);
+
+		jobEndCallback(runFile);
+	});
+
+	const progress = await fs.readJSON(progressPath);
+	progress[nextItem] = 'running';
+	await fs.writeJSON(progressPath, progress);
+}
 export const runConfig = async (req, res) => {
+	
 	const { setRestStatus, runFile } = req.log;
 
 	setRestStatus(JSON.stringify(req.body));
@@ -84,6 +110,11 @@ export const runConfig = async (req, res) => {
 	const configPath = path.resolve(`${storagePath}/config.json`);
 
 	res.writeHead(200, { "Content-Type": "application/json" });
+
+	if (!(await fs.pathExists(progressPath))) {
+		await fs.writeJSON(progressPath, {})
+	}
+
 	if (!(await fs.pathExists(configPath))) {
 		setRestStatus(`Error: ${configPath} not found`);
 		res.end(
@@ -95,9 +126,15 @@ export const runConfig = async (req, res) => {
 		return;
 	}
 
-	exec(`python ${runFile} --config=${configPath}`, (err, stdout, stderr) => {
-		setRestStatus(stdout);
-	});
+	jobQueue.unshift(nameId);
+
+	const progress = await fs.readJSON(progressPath);
+	progress[nameId] = 'queued';
+	await fs.writeJSON(progressPath, progress);
+
+	if (jobQueue.length === 1) {
+		jobEndCallback(runFile);
+	}
 
 	res.end(
 		JSON.stringify({
@@ -120,6 +157,14 @@ export const createConfig = async (req, res) => {
 	await fs.ensureDir(storagePath);
 
 	await fs.writeJSON(configPath, req.body);
+
+	if (!(await fs.pathExists(progressPath))) {
+		await fs.writeJSON(progressPath, {})
+	}
+
+	const progress = await fs.readJSON(progressPath);
+	progress[nameId] = 'saved';
+	await fs.writeJSON(progressPath, progress);
 
 	res.writeHead(200, { "Content-Type": "application/json" });
 	res.end(

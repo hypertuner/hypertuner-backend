@@ -124,6 +124,68 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 		uWS
 			.App()
+			.ws("/progress", {
+				compresson: 0,
+				maxPayloadLength: 16 * 1024 * 1024,
+
+				message: async (ws, message, isBinary) => {
+					const data = Buffer.from(message).toString();
+					
+					const args = JSON.parse(data);
+					const { action, payload } = args;
+
+					switch (action) {
+						case "watch": {
+							const progressPath = path.resolve('./storage/progress.json');
+							const watchId = uuid();
+							const pathExists = await fs.pathExists(progressPath);
+
+							if (!pathExists) {
+								ws.send(
+									JSON.stringify({
+										err: `progress-not-found`
+									})
+								);
+								return;
+							} else {
+								const processStatus = await fs.readJSON(progressPath);
+								ws.send(
+									JSON.stringify({ 
+										type: "progress-data",
+										processStatus,
+										watchId,
+										success: true
+									 })
+								);
+							}
+
+							const progressWatcher = await watcher(
+								progressPath,
+								async events => {
+
+									const processStatus = await fs.readJSON(progressPath);
+
+									ws.send(
+										JSON.stringify({ 
+											processStatus,
+											watchId,
+											type: "progress-data",
+											success: true
+										 })
+									);
+								}
+							);
+
+							await progressWatcher.start();
+
+							watchMap.set(watchId, progressWatcher);
+
+							break;
+
+						}
+					}
+				}
+			})
 			.ws("/graph", {
 				compression: 0,
 				maxPayloadLength: 16 * 1024 * 1024,
@@ -173,7 +235,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 							if (graphExist) {
 								const graphData = await csv({
-									headers: ["x", "y"]
+									headers: ["y", "x"]
 								}).fromFile(graphPath);
 
 								ws.send(
@@ -255,7 +317,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 				maxPayloadLength: 16 * 1024 * 1024,
 				open: (ws, req) => {
 					// For all shell data send it to the websocket
-					// setSocketStatus(data);
+					// setSocketStatus(data);x
 					shell.on("data", data => {
 						try {
 							ws.send(data);
