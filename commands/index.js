@@ -36,6 +36,7 @@ import { kebab } from "case";
 
 import os from "os";
 import { spawn } from "node-pty";
+import { getInitialProcess } from "../api/process-socket";
 
 const shellCmd = os.platform() === "win32" ? "powershell.exe" : "bash";
 
@@ -136,27 +137,23 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 					switch (action) {
 						case "watch": {
-							const progressPath = path.resolve("./storage/progress.json");
-							const watchId = uuid();
-							const pathExists = await fs.pathExists(progressPath);
+							const storagePath = path.resolve(`./storage/`);
 
-							if (!pathExists) {
-								ws.send(
-									JSON.stringify({
-										err: `progress-not-found`
-									})
-								);
-							} else {
-								const processStatus = await fs.readJSON(progressPath);
-								ws.send(
-									JSON.stringify({
-										type: "progress-data",
-										processStatus,
-										watchId,
-										success: true
-									})
-								);
-							}
+							const progressPath = path.resolve(`${storagePath}/progress.json`);
+
+							const watchId = uuid();
+
+							ws.send(
+								JSON.stringify({
+									type: "progress-data",
+									watchId,
+									processStatus: await getInitialProcess(
+										storagePath,
+										progressPath
+									),
+									success: true
+								})
+							);
 
 							const progressWatcher = await watcher(progressPath, async () => {
 								const processStatus = await fs.readJSON(progressPath);

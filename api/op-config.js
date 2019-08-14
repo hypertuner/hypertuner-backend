@@ -42,16 +42,24 @@ export const readConfig = async (req, res) => {
 
 	const storagePath = path.resolve(`./storage/${nameId}`);
 	const configPath = path.resolve(`${storagePath}/config.json`);
-
-	const data = await fs.readJSON(configPath);
-
 	res.writeHead(200, { "Content-Type": "application/json" });
-	res.end(
-		JSON.stringify({
-			success: true,
-			...data
-		})
-	);
+
+	try {
+		const data = await fs.readJSON(configPath);
+
+		res.end(
+			JSON.stringify({
+				success: true,
+				...data
+			})
+		);
+	} catch {
+		res.end(
+			JSON.stringify({
+				success: false
+			})
+		);
+	}
 };
 
 export const removeConfig = async (req, res) => {
@@ -78,32 +86,35 @@ export const removeConfig = async (req, res) => {
 };
 
 const jobQueue = [];
-const progressPath = path.resolve('./storage/progress.json')
+const progressPath = path.resolve("./storage/progress.json");
 
-const jobEndCallback = async (runFile) => {
-
-	if (jobQueue.length === 0) { return }
+const jobEndCallback = async runFile => {
+	if (jobQueue.length === 0) {
+		return;
+	}
 
 	const nextItem = jobQueue[jobQueue.length - 1];
 
 	const storagePath = path.resolve(`./storage/${nextItem}`);
 	const configPath = path.resolve(`${storagePath}/config.json`);
 
-	exec(`python3 ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
-		const finishedJob = jobQueue.pop();
-		const progress = await fs.readJSON(progressPath);
-		progress[finishedJob] = 'finished';
-		await fs.writeJSON(progressPath, progress);
+	exec(
+		`python3 ${runFile} --config=${configPath}`,
+		async (err, stdout, stderr) => {
+			const finishedJob = jobQueue.pop();
+			const progress = await fs.readJSON(progressPath);
+			progress[finishedJob] = "finished";
+			await fs.writeJSON(progressPath, progress);
 
-		jobEndCallback(runFile);
-	});
+			jobEndCallback(runFile);
+		}
+	);
 
 	const progress = await fs.readJSON(progressPath);
-	progress[nextItem] = 'running';
+	progress[nextItem] = "running";
 	await fs.writeJSON(progressPath, progress);
-}
+};
 export const runConfig = async (req, res) => {
-	
 	const { setRestStatus, runFile } = req.log;
 
 	setRestStatus(JSON.stringify(req.body));
@@ -116,7 +127,7 @@ export const runConfig = async (req, res) => {
 	res.writeHead(200, { "Content-Type": "application/json" });
 
 	if (!(await fs.pathExists(progressPath))) {
-		await fs.writeJSON(progressPath, {})
+		await fs.writeJSON(progressPath, {});
 	}
 
 	if (!(await fs.pathExists(configPath))) {
@@ -133,7 +144,7 @@ export const runConfig = async (req, res) => {
 	jobQueue.unshift(nameId);
 
 	const progress = await fs.readJSON(progressPath);
-	progress[nameId] = 'queued';
+	progress[nameId] = "queued";
 	await fs.writeJSON(progressPath, progress);
 
 	if (jobQueue.length === 1) {
@@ -163,11 +174,11 @@ export const createConfig = async (req, res) => {
 	await fs.writeJSON(configPath, req.body);
 
 	if (!(await fs.pathExists(progressPath))) {
-		await fs.writeJSON(progressPath, {})
+		await fs.writeJSON(progressPath, {});
 	}
 
 	const progress = await fs.readJSON(progressPath);
-	progress[nameId] = 'saved';
+	progress[nameId] = "saved";
 	await fs.writeJSON(progressPath, progress);
 
 	res.writeHead(200, { "Content-Type": "application/json" });
