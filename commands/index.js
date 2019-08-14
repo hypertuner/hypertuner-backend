@@ -130,13 +130,13 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 				message: async (ws, message, isBinary) => {
 					const data = Buffer.from(message).toString();
-					
+
 					const args = JSON.parse(data);
 					const { action, payload } = args;
 
 					switch (action) {
 						case "watch": {
-							const progressPath = path.resolve('./storage/progress.json');
+							const progressPath = path.resolve("./storage/progress.json");
 							const watchId = uuid();
 							const pathExists = await fs.pathExists(progressPath);
 
@@ -146,43 +146,57 @@ const Main = ({ runFile, cors: enableCors }) => {
 										err: `progress-not-found`
 									})
 								);
-								return;
 							} else {
 								const processStatus = await fs.readJSON(progressPath);
 								ws.send(
-									JSON.stringify({ 
+									JSON.stringify({
 										type: "progress-data",
 										processStatus,
 										watchId,
 										success: true
-									 })
+									})
 								);
 							}
 
-							const progressWatcher = await watcher(
-								progressPath,
-								async events => {
+							const progressWatcher = await watcher(progressPath, async () => {
+								const processStatus = await fs.readJSON(progressPath);
 
-									const processStatus = await fs.readJSON(progressPath);
-
-									ws.send(
-										JSON.stringify({ 
-											processStatus,
-											watchId,
-											type: "progress-data",
-											success: true
-										 })
-									);
-								}
-							);
+								ws.send(
+									JSON.stringify({
+										processStatus,
+										watchId,
+										type: "progress-data",
+										success: true
+									})
+								);
+							});
 
 							await progressWatcher.start();
 
 							watchMap.set(watchId, progressWatcher);
 
 							break;
-
 						}
+						case "unwatch": {
+							const { watchId: stopWatchId } = payload;
+
+							// console.log(watchMap);
+
+							await watchMap.get(stopWatchId).stop();
+
+							watchMap.delete(stopWatchId);
+
+							ws.send(
+								JSON.stringify({
+									success: true,
+									type: "progress-stop",
+									watchId: stopWatchId
+								})
+							);
+							break;
+						}
+						default:
+							break;
 					}
 				}
 			})
@@ -190,17 +204,6 @@ const Main = ({ runFile, cors: enableCors }) => {
 				compression: 0,
 				maxPayloadLength: 16 * 1024 * 1024,
 				// idleTimeout: 10,
-				open: async (ws, req) => {
-					// ws.subscribe("graph/#");
-					// Start a file watcher inside the directory
-					// ws.publish("graph/temperature", message);
-					// await fs.ensureDir("./storage");
-					// setWatcherStatus("🔍\tWatching storage", "green");
-					// const storageWatcher = await watcher("./storage", e => {
-					// 	console.log(e);
-					// });
-					// await storageWatcher.start();
-				},
 				message: async (ws, message, isBinary) => {
 					const data = Buffer.from(message).toString();
 					setSocketStatus(data);
@@ -291,8 +294,6 @@ const Main = ({ runFile, cors: enableCors }) => {
 						case "unwatch": {
 							const { watchId: stopWatchId, nameId } = payload;
 
-							// console.log(watchMap);
-
 							await watchMap.get(stopWatchId).stop();
 
 							watchMap.delete(stopWatchId);
@@ -322,7 +323,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 						try {
 							ws.send(data);
 						} catch (error) {
-							setSocketStatus(error.message)
+							setSocketStatus(error.message);
 						}
 					});
 				},
@@ -332,7 +333,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 					if (msg) {
 						shell.write(Buffer.from(msg).toString());
 					}
-				},
+				}
 			})
 			.listen(webSocketPort, token => {
 				if (!token) {
