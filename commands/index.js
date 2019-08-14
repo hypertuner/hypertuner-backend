@@ -137,7 +137,8 @@ const Main = ({ runFile, cors: enableCors }) => {
 					switch (action) {
 						case "watch": {
 							const progressPath = path.resolve('./storage/progress.json');
-							const pathExists = await fs.pathExists(configPath);
+							const watchId = uuid();
+							const pathExists = await fs.pathExists(progressPath);
 
 							if (!pathExists) {
 								ws.send(
@@ -146,29 +147,30 @@ const Main = ({ runFile, cors: enableCors }) => {
 									})
 								);
 								return;
+							} else {
+								const processStatus = await fs.readJSON(progressPath);
+								ws.send(
+									JSON.stringify({ 
+										type: "progress-data",
+										processStatus,
+										watchId,
+										success: true
+									 })
+								);
 							}
-
-							const processStatus = await fs.readFile(progressPath);
-							ws.send(
-								JSON.stringify({ 
-									processStatus,
-									watchId
-								 })
-							);
-
-							const watchId = uuid();
 
 							const progressWatcher = await watcher(
 								progressPath,
 								async events => {
 
-									const processStatus = await fs.readFile(progressPath);
-									
+									const processStatus = await fs.readJSON(progressPath);
 
 									ws.send(
 										JSON.stringify({ 
 											processStatus,
-											watchId
+											watchId,
+											type: "progress-data",
+											success: true
 										 })
 									);
 								}
@@ -233,7 +235,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 
 							if (graphExist) {
 								const graphData = await csv({
-									headers: ["x", "y"]
+									headers: ["y", "x"]
 								}).fromFile(graphPath);
 
 								ws.send(
@@ -315,7 +317,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 				maxPayloadLength: 16 * 1024 * 1024,
 				open: (ws, req) => {
 					// For all shell data send it to the websocket
-					// setSocketStatus(data);
+					// setSocketStatus(data);x
 					shell.on("data", data => {
 						try {
 							ws.send(data);

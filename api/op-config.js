@@ -86,12 +86,12 @@ const jobEndCallback = async (runFile) => {
 	const configPath = path.resolve(`${storagePath}/config.json`);
 
 	exec(`python ${runFile} --config=${configPath}`, async (err, stdout, stderr) => {
-		jobEndCallback(runFile);
 		const finishedJob = jobQueue.pop();
-		
 		const progress = await fs.readJSON(progressPath);
 		progress[finishedJob] = 'finished';
 		await fs.writeJSON(progressPath, progress);
+
+		jobEndCallback(runFile);
 	});
 
 	const progress = await fs.readJSON(progressPath);
@@ -129,7 +129,7 @@ export const runConfig = async (req, res) => {
 	jobQueue.unshift(nameId);
 
 	const progress = await fs.readJSON(progressPath);
-	progress[name] = 'queued';
+	progress[nameId] = 'queued';
 	await fs.writeJSON(progressPath, progress);
 
 	if (jobQueue.length === 1) {
@@ -157,6 +157,14 @@ export const createConfig = async (req, res) => {
 	await fs.ensureDir(storagePath);
 
 	await fs.writeJSON(configPath, req.body);
+
+	if (!(await fs.pathExists(progressPath))) {
+		await fs.writeJSON(progressPath, {})
+	}
+
+	const progress = await fs.readJSON(progressPath);
+	progress[nameId] = 'saved';
+	await fs.writeJSON(progressPath, progress);
 
 	res.writeHead(200, { "Content-Type": "application/json" });
 	res.end(
