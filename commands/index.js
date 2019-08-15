@@ -177,7 +177,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 						}
 						case "unwatch": {
 							const { watchId: stopWatchId } = payload;
-
+							if (!watchMap.has(stopWatchId)) return;
 							// console.log(watchMap);
 
 							await watchMap.get(stopWatchId).stop();
@@ -291,6 +291,7 @@ const Main = ({ runFile, cors: enableCors }) => {
 						}
 						case "unwatch": {
 							const { watchId: stopWatchId, nameId } = payload;
+							if (!watchMap.has(stopWatchId)) return;
 
 							await watchMap.get(stopWatchId).stop();
 
