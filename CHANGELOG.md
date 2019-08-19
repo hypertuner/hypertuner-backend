@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [1.0.0] - 2019-08-15
+### Added
+- File watcher for graph properly working
+- Demoed at HackLodge
+
 ## [0.15.0] - 2019-08-13
 ### Added
 - Websocket handler for graph
