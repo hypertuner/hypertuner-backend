@@ -30,7 +30,7 @@
 		"pastel": "^1.0.3",
 		"prop-types": "^15.7.2",
 		"react": "^16.9.0",
-		"systeminformation": "^4.14.4",
+		"systeminformation": "^4.30.5",
 		"uWebSockets.js": "uNetworking/uWebSockets.js#v15.11.0",
 		"uuid": "^3.3.2"
 	}
